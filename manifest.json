@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.davefano.gardener",
+  "name": "Gardener",
+  "version": "0.1.0",
+  "author": "Dave Fano",
+  "description": "Today's focused workspace time and deliberate workspace cleanup.",
+  "kinds": ["service"],
+  "keepLoaded": true,
+  "entryPoints": {"service": "Service.qml"}
+}
