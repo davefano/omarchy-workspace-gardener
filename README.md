@@ -37,11 +37,39 @@ fails, resolve the reported error and rerun the installer.
 
 Press **Super+Space → Gardener** to open the native menu:
 
+![Gardener's native Omarchy menu with Clean workspaces, Preview cleanup, and Workspace usage](docs/screenshots/gardener-menu.png)
+
 | Command | What it does |
 | --- | --- |
 | **Clean workspaces** | Reorder eligible workspaces by today's focused time and close numbering gaps. |
 | **Preview cleanup** | Show the proposed moves without applying them. |
 | **Workspace usage** | Show today's focused time, including workspaces protected from cleanup. |
+
+### A typical cleanup
+
+1. **Work normally.** Gardener counts time on the focused workspace while the
+   service is running. Let it collect some usage before your first cleanup.
+2. **Check Workspace usage.** See which workspaces you have spent the most time
+   on today.
+3. **Choose Preview cleanup.** Review the proposed numbers. Each arrow reads
+   `current workspace → proposed workspace`; `1 → 1` means that workspace stays put.
+4. **Choose Clean workspaces.** Gardener applies the ranking to whole workspaces,
+   keeps their windows together, and refreshes the shell. The bar briefly disappears
+   while the shell reloads. Your usage counters follow the new numbers.
+
+Menu actions display their results in desktop notifications. For a report that
+stays visible, run the same commands in a terminal:
+
+![Terminal showing actual gardener stats and gardener preview output, with workspace 5 proposed to move to workspace 3](docs/screenshots/usage-and-preview.png)
+
+In this capture, workspace **1** has the most focused time and stays at **1**.
+Workspace **5** ranks third, so cleanup would move it to **3**, filling the gap.
+Workspaces **2** and **4** keep their numbers. This screenshot shows a preview;
+no cleanup has been applied. Your times and proposed moves will depend on your
+current workspaces and protected slots. Cleanup recalculates the plan when you run
+it, so it can differ from an earlier preview if usage or workspaces have changed.
+
+### Terminal commands
 
 The same actions are available from the terminal:
 
