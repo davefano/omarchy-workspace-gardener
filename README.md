@@ -13,7 +13,19 @@ background Python processes.
 
 ## Install
 
-Keep this checkout in a permanent location, then run from a running Omarchy session:
+Download `gardener-2026.09.29.0.tar.gz` from the
+[2026.09.29.0 release](https://github.com/davefano/omarchy-workspace-gardener/releases/tag/2026.09.29.0),
+extract it into a permanent location, and open a terminal in the extracted folder.
+The installer links to that folder, so keep it in place after installation.
+
+Alternatively, clone the release into your workspaces directory:
+
+```sh
+git clone --branch 2026.09.29.0 https://github.com/davefano/omarchy-workspace-gardener.git
+cd omarchy-workspace-gardener
+```
+
+From a running Omarchy session, install with:
 
 ```sh
 python3 install.py

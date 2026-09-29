@@ -1,0 +1,3 @@
+# Keep development workflow configuration out of release source archives.
+.compound-engineering export-ignore
+.context export-ignore

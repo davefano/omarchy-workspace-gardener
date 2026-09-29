@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.davefano.gardener",
   "name": "Gardener",
-  "version": "0.1.0",
+  "version": "2026.09.29.0",
   "author": "Dave Fano",
   "description": "Today's focused workspace time and deliberate workspace cleanup.",
   "kinds": ["service"],
