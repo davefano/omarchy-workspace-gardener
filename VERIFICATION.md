@@ -10,6 +10,8 @@ node --test test_model.cjs
 python3 -m py_compile gardener.py install.py
 /usr/lib/qt6/bin/qmllint -I /usr/lib/qt6/qml Service.qml
 omarchy plugin validate "$PWD"
+# Optional isolated QML test in a running Hyprland session:
+GARDENER_LIVE_TESTS=1 python3 -m unittest test_service -v
 ```
 
 Coverage includes ranking/ties, old-day reset, protected workspace slots,
@@ -60,6 +62,13 @@ only `DP-1` workspaces appeared, `eDP-1` workspace numbers were reserved, and
 preview left all workspace numbers and monitor placement unchanged. Automated
 tests cover monitor filtering, reserved numbers, shared preview/cleanup planning,
 and cancellation when the configured monitor is disconnected.
+
+An isolated Quickshell integration test runs the actual service without direct
+access to the lock service. It supplies public lock-status responses and checks
+unlocked cleanup admission, rejection while locked or unavailable, paused
+accounting on failure, and recovery when the status command works again. On the
+physical desktop, the compatibility fix restored increasing usage counters and
+cleanup admission; the diagnostic transaction was canceled before any moves.
 
 Physical suspend, cleanup on multiple physical monitors, and battery impact were
 not measured. Suspend accounting uses Quickshell's monotonic `ElapsedTimer` and is
