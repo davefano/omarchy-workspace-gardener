@@ -149,6 +149,27 @@ using the pinned list below. Reserve additional numbers in
 Pins reserve numbers even when those workspaces do not currently exist. If a
 workspace selector rule cannot be handled safely, cleanup stops with an explanation.
 
+### Choose a cleanup monitor
+
+By default, cleanup ranks workspaces across all monitors. To organize only your
+primary display, set its connector name in `~/.config/gardener/config.json`:
+
+```json
+{"cleanup_monitor": "DP-1", "pinned": []}
+```
+
+Find connector names with `hyprctl -j monitors`. This selection is fixed; moving
+focus to another display does not change it. Preview and cleanup only include
+workspaces on the selected monitor. Workspace numbers on other monitors are
+reserved, so those workspaces keep their numbers and cannot collide with cleanup.
+Pinned, named, persistent, empty, and rule-bound slots remain protected.
+
+If the selected monitor is disconnected, preview and cleanup stop with an
+explanation. Change the connector name or remove `cleanup_monitor` to organize all
+monitors again. Configuration changes apply on the next command without a restart.
+Usage tracking and **Workspace usage** continue to cover both displays, following
+the focused workspace. Reports show each workspace's monitor.
+
 ### Preserve layouts during cleanup
 
 Gardener changes whole workspace IDs through Hyprland's `change_id` dispatcher.

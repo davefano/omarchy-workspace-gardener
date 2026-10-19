@@ -53,19 +53,30 @@ def snapshot():
             "interrupted": JOURNAL.exists()}
 
 
-def pinned_ids():
+def cleanup_config():
     if not CONFIG.exists():
-        return set()
+        return {}
     config = json.loads(CONFIG.read_text())
     if not isinstance(config, dict):
         raise ValueError("config.json must contain an object, for example {\"pinned\": [1]}")
     value = config.get("pinned", [])
     if not isinstance(value, list) or any(type(i) is not int or not 0 < i < 2**31 for i in value):
         raise ValueError("config.json pinned must be a list of positive workspace numbers")
-    return set(value)
+    monitor = config.get("cleanup_monitor")
+    if monitor is not None and (not isinstance(monitor, str) or not monitor.strip()):
+        raise ValueError("config.json cleanup_monitor must be a monitor name such as DP-1")
+    return config
 
 
-def plan(workspaces, state, pinned=(), rules=()):
+def cleanup_plan(workspaces, state):
+    config = cleanup_config()
+    monitor = config.get("cleanup_monitor")
+    if monitor is not None and not any(m["name"] == monitor for m in hypr("monitors")):
+        raise ValueError(f"Cleanup monitor {monitor} is not connected. Update cleanup_monitor in {CONFIG}.")
+    return plan(workspaces, state, config.get("pinned", []), hypr("workspacerules"), monitor)
+
+
+def plan(workspaces, state, pinned=(), rules=(), monitor=None):
     """Reserve named, persistent, empty and rule-bound slots, including absent pins."""
     reserved = set(pinned)
     for rule in rules:
@@ -80,7 +91,7 @@ def plan(workspaces, state, pinned=(), rules=()):
         wid = w["id"]
         if wid <= 0:
             continue
-        if w.get("ispersistent") or w["name"] != str(wid) or not w["windows"]:
+        if (monitor is not None and w["monitor"] != monitor) or w.get("ispersistent") or w["name"] != str(wid) or not w["windows"]:
             reserved.add(wid)
         else:
             candidates.append(w)
@@ -172,7 +183,7 @@ def tidy():
         raise RuntimeError(frozen["error"])
     try:
         before = {"instance": os.environ.get("HYPRLAND_INSTANCE_SIGNATURE", ""), "workspaces": hypr("workspaces")}
-        rows = plan(before["workspaces"], frozen["state"], pinned_ids(), hypr("workspacerules"))
+        rows = cleanup_plan(before["workspaces"], frozen["state"])
         mapping = {r["from"]: r["to"] for r in rows if r["from"] != r["to"]}
         if not mapping:
             ipc("cancel", token)
@@ -216,7 +227,7 @@ def report(command):
         raise RuntimeError(status.get("error") or "Gardener is starting or cleanup is in progress.")
     workspaces = hypr("workspaces")
     if command == "preview":
-        rows = plan(workspaces, status["state"], pinned_ids(), hypr("workspacerules"))
+        rows = cleanup_plan(workspaces, status["state"])
     else:
         scores = status["state"].get("seconds", {}) if status["state"]["day"] == dt.date.today().isoformat() else {}
         rows = [{"from": w["id"], "name": w["name"], "seconds": scores.get(str(w["id"]), 0),
@@ -233,7 +244,7 @@ def format_report(result, command):
         duration = f"{mins // 60}h {mins % 60:02}m" if mins >= 60 else f"{mins}m"
         target = f" → {row['to']}" if command in ("preview", "tidy") else ""
         label = row.get("name", str(row["from"]))
-        lines.append(f"Workspace {label}{target} · {duration} · {row['windows']} windows")
+        lines.append(f"Workspace {label}{target} · {duration} · {row['windows']} windows · {row['monitor']}")
     if not result.get("workspaces"):
         lines.append("No numbered workspaces." if command == "stats" else "No eligible numbered workspaces. Named, pinned, empty and persistent slots are reserved.")
     return "\n".join(lines)

@@ -2,12 +2,14 @@ import datetime as dt
 import unittest
 from unittest.mock import patch
 import json
+from pathlib import Path
+import tempfile
 import gardener
 from gardener import plan, relocate, recover_positions
 
 
-def workspace(wid, **kw):
-    return dict(id=wid, name=str(wid), windows=1, monitor="eDP-1", ispersistent=False, **kw)
+def workspace(wid, monitor="eDP-1", **kw):
+    return dict(id=wid, name=str(wid), windows=1, monitor=monitor, ispersistent=False, **kw)
 
 
 class PlannerTests(unittest.TestCase):
@@ -31,6 +33,40 @@ class PlannerTests(unittest.TestCase):
     def test_ignores_yesterday_and_special_workspaces(self):
         rows = plan([workspace(-99), workspace(7), workspace(8)], {"day": "2000-01-01", "seconds": {"8": 999}})
         self.assertEqual([r["from"] for r in rows], [7, 8])
+
+    def test_cleanup_monitor_preserves_other_monitors_and_reserves_their_numbers(self):
+        ws = [workspace(1), workspace(3), workspace(8, monitor="DP-1"), workspace(12, monitor="DP-1")]
+        rows = plan(ws, self.state({"1": 999, "12": 100}), monitor="DP-1", pinned=[4])
+        self.assertEqual([(r["from"], r["to"]) for r in rows], [(12, 2), (8, 5)])
+        self.assertTrue(all(r["monitor"] == "DP-1" for r in rows))
+
+    def test_preview_and_tidy_use_configured_monitor(self):
+        ws = [workspace(1), workspace(2, monitor="DP-1")]
+        state = self.state({"1": 999})
+        status = {"ready": True, "counting": True, "state": state}
+        def query(name):
+            return {"workspaces": ws, "workspacerules": [], "monitors": [{"name": "DP-1"}]}[name]
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "config.json"
+            config.write_text(json.dumps({"cleanup_monitor": "DP-1"}))
+            with patch.object(gardener, "CONFIG", config), patch.object(gardener, "JOURNAL", Path(directory) / "journal.json"), patch.object(gardener, "hypr", side_effect=query), patch.object(gardener, "ipc", return_value=json.dumps(status)):
+                preview = gardener.report("preview")["workspaces"]
+                self.assertEqual([(r["from"], r["to"]) for r in preview], [(2, 2)])
+                self.assertEqual(gardener.tidy()["workspaces"], preview)
+                self.assertEqual(len(gardener.report("stats")["workspaces"]), 2)
+
+    def test_disconnected_cleanup_monitor_stops_preview_and_cancels_tidy(self):
+        status = {"ready": True, "counting": True, "state": self.state({})}
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "config.json"
+            config.write_text(json.dumps({"cleanup_monitor": "DP-1"}))
+            journal = Path(directory) / "journal.json"
+            with patch.object(gardener, "CONFIG", config), patch.object(gardener, "JOURNAL", journal), patch.object(gardener, "hypr", return_value=[]), patch.object(gardener, "ipc", return_value=json.dumps(status)) as ipc:
+                for command in (lambda: gardener.report("preview"), gardener.tidy):
+                    with self.assertRaisesRegex(ValueError, "DP-1.*not connected"):
+                        command()
+                self.assertEqual(ipc.call_args.args[0], "cancel")
+                self.assertFalse(journal.exists())
 
     def test_rejects_ambiguous_selector_rules(self):
         with self.assertRaises(ValueError):
@@ -72,7 +108,7 @@ class PlannerTests(unittest.TestCase):
                 return [workspace(7)]
             return [{"workspaceString": "r[1-10]", "monitor": "DP-1"}]
         status = {"ready": True, "counting": False, "state": self.state({"7": 3600})}
-        with patch.object(gardener, "ipc", return_value=json.dumps(status)), patch.object(gardener, "hypr", side_effect=query), patch.object(gardener, "pinned_ids", return_value={7}):
+        with patch.object(gardener, "ipc", return_value=json.dumps(status)), patch.object(gardener, "hypr", side_effect=query), patch.object(gardener, "cleanup_config", return_value={"pinned": [7]}):
             self.assertEqual(gardener.report("stats")["workspaces"][0]["seconds"], 3600)
             with self.assertRaises(ValueError):
                 gardener.report("preview")
