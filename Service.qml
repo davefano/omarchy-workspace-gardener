@@ -8,8 +8,9 @@ import "Model.js" as Model
 Item {
     id: root
     property var shell: null
-    readonly property var lockService: shell ? shell.serviceFor("omarchy.lock") : null
-    readonly property bool locked: lockService ? lockService.locked : true
+    property bool locked: true
+    property bool lockStatusKnown: false
+    readonly property string lockStatusError: lockStatusKnown ? "" : "Could not read the screen lock state. Check `omarchy-shell lock isLocked`."
     readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/omarchy/gardener"
     property var usageData: null
     property int focusedId: 0
@@ -40,6 +41,41 @@ Item {
         if (!counting) persist();
     }
     onLockedChanged: boundary()
+
+    Process {
+        id: lockStatus
+        property bool receivedExit: false
+        command: ["omarchy-shell", "lock", "isLocked"]
+        stdout: StdioCollector { id: lockOutput }
+        onRunningChanged: {
+            if (running) receivedExit = false;
+            else Qt.callLater(function() {
+                // FailedToStart stops the process without emitting exited.
+                if (!lockStatus.running && !lockStatus.receivedExit) {
+                    root.lockStatusKnown = false;
+                    root.locked = true;
+                }
+            });
+        }
+        onExited: function(exitCode, exitStatus) {
+            receivedExit = true;
+            var value = lockOutput.text.trim();
+            root.lockStatusKnown = exitCode === 0 && exitStatus === 0 && (value === "true" || value === "false");
+            root.locked = !root.lockStatusKnown || value === "true";
+        }
+    }
+    Timer {
+        interval: 2000
+        repeat: true
+        running: root.ready
+        triggeredOnStart: true
+        onTriggered: {
+            if (!lockStatus.running) {
+                lockStatus.receivedExit = false;
+                lockStatus.running = true;
+            }
+        }
+    }
 
     function receive(event) {
         if (!ready || frozen) return;
@@ -116,9 +152,10 @@ Item {
         target: "gardener"
         function status(): string {
             root.settle();
-            return JSON.stringify({ready: root.ready, frozen: root.frozen, counting: root.counting, error: root.error, state: root.usageData});
+            return JSON.stringify({ready: root.ready, frozen: root.frozen, counting: root.counting, locked: root.locked, lockStatusKnown: root.lockStatusKnown, error: root.error || root.lockStatusError, state: root.usageData});
         }
         function freeze(token: string): string {
+            if (!root.lockStatusKnown) return JSON.stringify({error: root.lockStatusError});
             if (!root.ready || root.frozen || root.locked || root.error) return JSON.stringify({error: root.error || "Gardener is busy or the screen is locked."});
             root.settle(); root.frozen = true; root.transaction = token; root.updateCounting(); root.persist(); lease.restart();
             return JSON.stringify({state: root.usageData});

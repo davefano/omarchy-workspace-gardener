@@ -113,6 +113,11 @@ focused monitor, and after 120 seconds without input. The first 120 seconds of
 inactivity count as focused time; idle inhibitors do not prevent the pause.
 A monotonic timer measures elapsed time and excludes suspend time.
 
+Gardener reads Omarchy's public lock-status command every two seconds, so lock
+transitions can take up to two seconds to pause or resume accounting. It pauses
+if lock status cannot be read. This works with Omarchy versions that isolate the
+lock service from third-party plugins.
+
 "Today" means the local calendar day. Counters reset for a new day and when
 Hyprland starts a new compositor session. Destroying a workspace discards its
 counter, so a new workspace using the same number starts fresh. An Omarchy shell
