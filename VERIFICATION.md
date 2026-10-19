@@ -55,8 +55,14 @@ restart failure after a completed cleanup reports `omarchy restart shell` as the
 repair. Use `python3 install.py --uninstall` to disable and remove Gardener while
 retaining local usage/configuration. No network service or telemetry is involved.
 
-Physical suspend, multiple physical monitors, and battery impact were not
-measured. Suspend accounting uses Quickshell's monotonic `ElapsedTimer` and is
+Monitor-scoped preview was checked on physical `DP-1` and `eDP-1` displays:
+only `DP-1` workspaces appeared, `eDP-1` workspace numbers were reserved, and
+preview left all workspace numbers and monitor placement unchanged. Automated
+tests cover monitor filtering, reserved numbers, shared preview/cleanup planning,
+and cancellation when the configured monitor is disconnected.
+
+Physical suspend, cleanup on multiple physical monitors, and battery impact were
+not measured. Suspend accounting uses Quickshell's monotonic `ElapsedTimer` and is
 covered at the accounting-model boundary.
 
 ## Review
